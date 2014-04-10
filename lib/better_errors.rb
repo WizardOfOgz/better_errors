@@ -96,20 +96,25 @@ module BetterErrors
   #
   #   @param [Proc] proc
   #
-  def self.editor=(editor)
-    POSSIBLE_EDITOR_PRESETS.each do |config|
-      if config[:symbols].include?(editor)
-        return self.editor = config[:url]
-      end
-    end
+  # @overload BetterErrors.editor=(enum)
+  #   Uses `enum` to generate a collection of open-in-editor URLs.
+  #
+  #   Each element of `enum` should be a Symbol, String or Proc as describe
+  #   in the above overloads of this method.
+  #
+  #   @params [Enumerable] enum
+  def self.editor=(editors)
+    @editor = [*editors].map do |editor|
 
-    if editor.is_a? String
-      self.editor = proc { |file, line| editor % { file: URI.encode_www_form_component(file), line: line } }
-    else
-      if editor.respond_to? :call
-        @editor = editor
+      if config = POSSIBLE_EDITOR_PRESETS.detect { |config| config[:symbols].include?(editor) }
+        editor = config[:url]
+        redo
+      elsif editor.is_a? String
+        proc { |file, line| editor % { file: URI.encode_www_form_component(file), line: line } }
+      elsif editor.respond_to? :call
+        editor
       else
-        raise TypeError, "Expected editor to be a valid editor key, a format string or a callable."
+        raise TypeError, "Expected editor to be a valid editor key, a format string or a callable, but found #{ editor.inspect }"
       end
     end
   end
